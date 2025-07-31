@@ -1,0 +1,775 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Catch the Stars</title>
+    <style>
+        /* ===== GLOBAL STYLES ===== */
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        body {
+            font-family: 'Arial', sans-serif;
+            background: linear-gradient(45deg, #1a1a2e, #16213e, #0f3460);
+            background-size: 400% 400%;
+            animation: gradientShift 8s ease-in-out infinite;
+            color: white;
+            overflow: hidden;
+            height: 100vh;
+            user-select: none;
+        }
+
+        @keyframes gradientShift {
+            0%, 100% { background-position: 0% 50%; }
+            50% { background-position: 100% 50%; }
+        }
+
+        /* ===== GAME CONTAINER ===== */
+        .game-container {
+            position: relative;
+            width: 100vw;
+            height: 100vh;
+            overflow: hidden;
+        }
+
+        /* ===== GAME CANVAS ===== */
+        #gameCanvas {
+            position: absolute;
+            top: 0;
+            left: 0;
+            background: transparent;
+            cursor: none;
+        }
+
+        /* ===== UI ELEMENTS ===== */
+        .ui-overlay {
+            position: absolute;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            pointer-events: none;
+            z-index: 10;
+        }
+
+        .score-display {
+            position: absolute;
+            top: 20px;
+            left: 20px;
+            font-size: 24px;
+            font-weight: bold;
+            text-shadow: 2px 2px 4px rgba(0,0,0,0.8);
+            pointer-events: auto;
+        }
+
+        .lives-display {
+            position: absolute;
+            top: 20px;
+            right: 20px;
+            font-size: 20px;
+            display: flex;
+            align-items: center;
+            gap: 5px;
+            pointer-events: auto;
+        }
+
+        .heart {
+            color: #ff6b6b;
+            font-size: 24px;
+            text-shadow: 2px 2px 4px rgba(0,0,0,0.8);
+            animation: heartbeat 2s ease-in-out infinite;
+        }
+
+        @keyframes heartbeat {
+            0%, 100% { transform: scale(1); }
+            50% { transform: scale(1.1); }
+        }
+
+        /* ===== GAME SCREENS ===== */
+        .screen {
+            position: absolute;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            display: flex;
+            flex-direction: column;
+            justify-content: center;
+            align-items: center;
+            background: rgba(0,0,0,0.8);
+            backdrop-filter: blur(10px);
+            z-index: 20;
+            pointer-events: auto;
+        }
+
+        .screen.hidden {
+            display: none;
+        }
+
+        .screen h1 {
+            font-size: 3rem;
+            margin-bottom: 20px;
+            text-align: center;
+            background: linear-gradient(45deg, #ffd700, #ffed4e, #ffd700);
+            -webkit-background-clip: text;
+            -webkit-text-fill-color: transparent;
+            background-clip: text;
+            animation: titleGlow 2s ease-in-out infinite;
+        }
+
+        @keyframes titleGlow {
+            0%, 100% { filter: brightness(1); }
+            50% { filter: brightness(1.2); }
+        }
+
+        .screen p {
+            font-size: 1.2rem;
+            margin-bottom: 10px;
+            text-align: center;
+            max-width: 600px;
+            line-height: 1.6;
+        }
+
+        .btn {
+            background: linear-gradient(45deg, #667eea, #764ba2);
+            border: none;
+            color: white;
+            padding: 15px 30px;
+            font-size: 18px;
+            border-radius: 25px;
+            cursor: pointer;
+            margin: 10px;
+            transition: all 0.3s ease;
+            box-shadow: 0 4px 15px rgba(0,0,0,0.3);
+            font-weight: bold;
+        }
+
+        .btn:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 6px 20px rgba(0,0,0,0.4);
+            background: linear-gradient(45deg, #764ba2, #667eea);
+        }
+
+        .btn:active {
+            transform: translateY(0);
+        }
+
+        /* ===== GAME ENTITIES ===== */
+        .star {
+            position: absolute;
+            color: #ffd700;
+            font-size: 20px;
+            text-shadow: 0 0 10px #ffd700;
+            animation: starTwinkle 1s ease-in-out infinite;
+            pointer-events: none;
+            z-index: 5;
+        }
+
+        @keyframes starTwinkle {
+            0%, 100% { opacity: 1; transform: scale(1); }
+            50% { opacity: 0.7; transform: scale(1.1); }
+        }
+
+        .obstacle {
+            position: absolute;
+            background: linear-gradient(45deg, #ff4757, #ff3742);
+            border-radius: 50%;
+            box-shadow: 0 0 20px rgba(255, 71, 87, 0.5);
+            pointer-events: none;
+            z-index: 5;
+            animation: obstacleGlow 2s ease-in-out infinite;
+        }
+
+        @keyframes obstacleGlow {
+            0%, 100% { box-shadow: 0 0 20px rgba(255, 71, 87, 0.5); }
+            50% { box-shadow: 0 0 30px rgba(255, 71, 87, 0.8); }
+        }
+
+        .player {
+            position: absolute;
+            width: 30px;
+            height: 30px;
+            background: linear-gradient(45deg, #74b9ff, #0984e3);
+            border-radius: 50%;
+            box-shadow: 0 0 20px rgba(116, 185, 255, 0.6);
+            pointer-events: none;
+            z-index: 6;
+            transition: none;
+        }
+
+        /* ===== PARTICLE EFFECTS ===== */
+        .particle {
+            position: absolute;
+            width: 4px;
+            height: 4px;
+            background: #ffd700;
+            border-radius: 50%;
+            pointer-events: none;
+            z-index: 4;
+        }
+
+        /* ===== MOBILE RESPONSIVENESS ===== */
+        @media (max-width: 768px) {
+            .screen h1 {
+                font-size: 2rem;
+            }
+            
+            .screen p {
+                font-size: 1rem;
+                padding: 0 20px;
+            }
+            
+            .score-display, .lives-display {
+                font-size: 18px;
+                top: 10px;
+            }
+            
+            .score-display {
+                left: 10px;
+            }
+            
+            .lives-display {
+                right: 10px;
+            }
+        }
+
+        /* ===== SOUND CONTROLS ===== */
+        .sound-toggle {
+            position: absolute;
+            bottom: 20px;
+            right: 20px;
+            background: rgba(255,255,255,0.2);
+            border: none;
+            color: white;
+            padding: 10px;
+            border-radius: 50%;
+            cursor: pointer;
+            font-size: 20px;
+            transition: all 0.3s ease;
+            pointer-events: auto;
+            z-index: 15;
+        }
+
+        .sound-toggle:hover {
+            background: rgba(255,255,255,0.3);
+            transform: scale(1.1);
+        }
+    </style>
+</head>
+<body>
+    <div class="game-container">
+        <!-- Game Canvas -->
+        <canvas id="gameCanvas"></canvas>
+        
+        <!-- UI Overlay -->
+        <div class="ui-overlay">
+            <div class="score-display">
+                Score: <span id="score">0</span>
+            </div>
+            <div class="lives-display">
+                Lives: <span id="lives">❤️❤️❤️</span>
+            </div>
+        </div>
+
+        <!-- Sound Toggle -->
+        <button class="sound-toggle" id="soundToggle">🔊</button>
+
+        <!-- Start Screen -->
+        <div class="screen" id="startScreen">
+            <h1>⭐ Catch the Stars ⭐</h1>
+            <p>Move your mouse (or finger) to catch falling stars!</p>
+            <p>Avoid the red obstacles - they'll cost you a life!</p>
+            <p>Each star is worth 10 points. How high can you score?</p>
+            <button class="btn" onclick="startGame()">Start Game</button>
+            <button class="btn" onclick="showTutorial()">How to Play</button>
+        </div>
+
+        <!-- Tutorial Screen -->
+        <div class="screen hidden" id="tutorialScreen">
+            <h1>How to Play</h1>
+            <p>🖱️ <strong>Desktop:</strong> Move your mouse to control the blue player</p>
+            <p>👆 <strong>Mobile:</strong> Touch and drag to move the player</p>
+            <p>⭐ <strong>Catch Stars:</strong> Touch stars to earn 10 points each</p>
+            <p>❌ <strong>Avoid Obstacles:</strong> Red circles will cost you a life</p>
+            <p>❤️ <strong>Lives:</strong> You start with 3 lives - don't lose them all!</p>
+            <p>🎯 <strong>Goal:</strong> Score as high as possible!</p>
+            <button class="btn" onclick="hideScreen('tutorialScreen')">Got it!</button>
+        </div>
+
+        <!-- Game Over Screen -->
+        <div class="screen hidden" id="gameOverScreen">
+            <h1>Game Over!</h1>
+            <p>Final Score: <span id="finalScore">0</span></p>
+            <p id="scoreMessage">Great job!</p>
+            <button class="btn" onclick="startGame()">Play Again</button>
+            <button class="btn" onclick="showStart()">Main Menu</button>
+        </div>
+
+        <!-- Pause Screen -->
+        <div class="screen hidden" id="pauseScreen">
+            <h1>Game Paused</h1>
+            <p>Take a break!</p>
+            <button class="btn" onclick="resumeGame()">Resume</button>
+            <button class="btn" onclick="showStart()">Main Menu</button>
+        </div>
+    </div>
+
+    <script>
+        // ===== GAME VARIABLES =====
+        const canvas = document.getElementById('gameCanvas');
+        const ctx = canvas.getContext('2d');
+        
+        let gameState = 'start'; // start, playing, paused, gameOver
+        let score = 0;
+        let lives = 3;
+        let gameSpeed = 1;
+        let soundEnabled = true;
+        
+        // Player object
+        const player = {
+            x: 0,
+            y: 0,
+            targetX: 0,
+            targetY: 0,
+            size: 15,
+            element: null,
+            smoothing: 0.25
+        };
+        
+        // Game arrays
+        let stars = [];
+        let obstacles = [];
+        let particles = [];
+        
+        // Game settings
+        const STAR_SPAWN_RATE = 0.02;
+        const OBSTACLE_SPAWN_RATE = 0.008;
+        const PARTICLE_COUNT = 8;
+        
+        // ===== INITIALIZATION =====
+        function initGame() {
+            resizeCanvas();
+            createPlayer();
+            
+            // Event listeners
+            window.addEventListener('resize', resizeCanvas);
+            canvas.addEventListener('mousemove', handleMouseMove);
+            canvas.addEventListener('touchmove', handleTouchMove);
+            canvas.addEventListener('touchstart', handleTouchMove);
+            document.addEventListener('keydown', handleKeyPress);
+            
+            // Sound toggle
+            document.getElementById('soundToggle').addEventListener('click', toggleSound);
+            
+            // Initialize audio context (for better browser support)
+            initAudio();
+        }
+        
+        function resizeCanvas() {
+            canvas.width = window.innerWidth;
+            canvas.height = window.innerHeight;
+        }
+        
+        function createPlayer() {
+            if (player.element) {
+                player.element.remove();
+            }
+            
+            player.element = document.createElement('div');
+            player.element.className = 'player';
+            player.x = canvas.width / 2;
+            player.y = canvas.height / 2;
+            player.targetX = player.x;
+            player.targetY = player.y;
+            updatePlayerPosition();
+            document.body.appendChild(player.element);
+        }
+        
+        function updatePlayerPosition() {
+            if (player.element) {
+                // Smooth interpolation towards target position
+                const dx = player.targetX - player.x;
+                const dy = player.targetY - player.y;
+                
+                // Only interpolate if there's a significant difference
+                if (Math.abs(dx) > 0.1 || Math.abs(dy) > 0.1) {
+                    player.x += dx * player.smoothing;
+                    player.y += dy * player.smoothing;
+                }
+                
+                player.element.style.left = (player.x - player.size) + 'px';
+                player.element.style.top = (player.y - player.size) + 'px';
+            }
+        }
+        
+        // ===== AUDIO SYSTEM =====
+        let audioContext;
+        
+        function initAudio() {
+            try {
+                audioContext = new (window.AudioContext || window.webkitAudioContext)();
+            } catch (e) {
+                console.log('Web Audio API not supported');
+            }
+        }
+        
+        function playSound(frequency, duration, type = 'square') {
+            if (!soundEnabled || !audioContext) return;
+            
+            const oscillator = audioContext.createOscillator();
+            const gainNode = audioContext.createGain();
+            
+            oscillator.connect(gainNode);
+            gainNode.connect(audioContext.destination);
+            
+            oscillator.frequency.value = frequency;
+            oscillator.type = type;
+            
+            gainNode.gain.setValueAtTime(0.1, audioContext.currentTime);
+            gainNode.gain.exponentialRampToValueAtTime(0.01, audioContext.currentTime + duration);
+            
+            oscillator.start(audioContext.currentTime);
+            oscillator.stop(audioContext.currentTime + duration);
+        }
+        
+        function toggleSound() {
+            soundEnabled = !soundEnabled;
+            document.getElementById('soundToggle').textContent = soundEnabled ? '🔊' : '🔇';
+        }
+        
+        // ===== INPUT HANDLING =====
+        function handleMouseMove(e) {
+            if (gameState !== 'playing') return;
+            
+            const rect = canvas.getBoundingClientRect();
+            player.targetX = e.clientX - rect.left;
+            player.targetY = e.clientY - rect.top;
+        }
+        
+        function handleTouchMove(e) {
+            if (gameState !== 'playing') return;
+            
+            e.preventDefault();
+            const rect = canvas.getBoundingClientRect();
+            const touch = e.touches[0];
+            player.targetX = touch.clientX - rect.left;
+            player.targetY = touch.clientY - rect.top;
+        }
+        
+        function handleKeyPress(e) {
+            if (e.code === 'Space') {
+                e.preventDefault();
+                if (gameState === 'playing') {
+                    pauseGame();
+                } else if (gameState === 'paused') {
+                    resumeGame();
+                }
+            }
+            if (e.code === 'Escape' && gameState === 'playing') {
+                pauseGame();
+            }
+        }
+        
+        // ===== GAME ENTITIES =====
+        function createStar() {
+            const star = document.createElement('div');
+            star.className = 'star';
+            star.textContent = '⭐';
+            star.style.left = Math.random() * (canvas.width - 40) + 'px';
+            star.style.top = '-40px';
+            
+            const starData = {
+                element: star,
+                x: parseInt(star.style.left),
+                y: -40,
+                speed: 2 + Math.random() * 3,
+                size: 20
+            };
+            
+            stars.push(starData);
+            document.body.appendChild(star);
+        }
+        
+        function createObstacle() {
+            const obstacle = document.createElement('div');
+            obstacle.className = 'obstacle';
+            const size = 25 + Math.random() * 20;
+            obstacle.style.width = size + 'px';
+            obstacle.style.height = size + 'px';
+            obstacle.style.left = Math.random() * (canvas.width - size) + 'px';
+            obstacle.style.top = '-' + size + 'px';
+            
+            const obstacleData = {
+                element: obstacle,
+                x: parseInt(obstacle.style.left),
+                y: -size,
+                speed: 1.5 + Math.random() * 2,
+                size: size / 2
+            };
+            
+            obstacles.push(obstacleData);
+            document.body.appendChild(obstacle);
+        }
+        
+        function createParticles(x, y, color = '#ffd700') {
+            for (let i = 0; i < PARTICLE_COUNT; i++) {
+                const particle = document.createElement('div');
+                particle.className = 'particle';
+                particle.style.left = x + 'px';
+                particle.style.top = y + 'px';
+                particle.style.background = color;
+                
+                const particleData = {
+                    element: particle,
+                    x: x,
+                    y: y,
+                    vx: (Math.random() - 0.5) * 10,
+                    vy: (Math.random() - 0.5) * 10,
+                    life: 1.0,
+                    decay: 0.02
+                };
+                
+                particles.push(particleData);
+                document.body.appendChild(particle);
+            }
+        }
+        
+        // ===== COLLISION DETECTION =====
+        function checkCollision(obj1, obj2) {
+            const dx = obj1.x - obj2.x;
+            const dy = obj1.y - obj2.y;
+            const distance = Math.sqrt(dx * dx + dy * dy);
+            return distance < (obj1.size + obj2.size);
+        }
+        
+        // ===== GAME UPDATE LOOP =====
+        function updateGame() {
+            if (gameState !== 'playing') return;
+            
+            // Smooth player movement
+            updatePlayerPosition();
+            
+            // Spawn stars
+            if (Math.random() < STAR_SPAWN_RATE * gameSpeed) {
+                createStar();
+            }
+            
+            // Spawn obstacles
+            if (Math.random() < OBSTACLE_SPAWN_RATE * gameSpeed) {
+                createObstacle();
+            }
+            
+            // Update stars
+            for (let i = stars.length - 1; i >= 0; i--) {
+                const star = stars[i];
+                star.y += star.speed * gameSpeed;
+                star.element.style.top = star.y + 'px';
+                
+                // Check collision with player
+                if (checkCollision(player, star)) {
+                    // Star caught
+                    score += 10;
+                    updateScore();
+                    playSound(800, 0.1);
+                    createParticles(star.x, star.y, '#ffd700');
+                    
+                    // Remove star
+                    star.element.remove();
+                    stars.splice(i, 1);
+                    continue;
+                }
+                
+                // Remove if off screen
+                if (star.y > canvas.height + 50) {
+                    star.element.remove();
+                    stars.splice(i, 1);
+                }
+            }
+            
+            // Update obstacles
+            for (let i = obstacles.length - 1; i >= 0; i--) {
+                const obstacle = obstacles[i];
+                obstacle.y += obstacle.speed * gameSpeed;
+                obstacle.element.style.top = obstacle.y + 'px';
+                
+                // Check collision with player
+                if (checkCollision(player, obstacle)) {
+                    // Hit obstacle
+                    lives--;
+                    updateLives();
+                    playSound(200, 0.3);
+                    createParticles(obstacle.x, obstacle.y, '#ff4757');
+                    
+                    // Remove obstacle
+                    obstacle.element.remove();
+                    obstacles.splice(i, 1);
+                    
+                    // Check game over
+                    if (lives <= 0) {
+                        gameOver();
+                        return;
+                    }
+                    continue;
+                }
+                
+                // Remove if off screen
+                if (obstacle.y > canvas.height + 50) {
+                    obstacle.element.remove();
+                    obstacles.splice(i, 1);
+                }
+            }
+            
+            // Update particles
+            for (let i = particles.length - 1; i >= 0; i--) {
+                const particle = particles[i];
+                particle.x += particle.vx;
+                particle.y += particle.vy;
+                particle.life -= particle.decay;
+                
+                particle.element.style.left = particle.x + 'px';
+                particle.element.style.top = particle.y + 'px';
+                particle.element.style.opacity = particle.life;
+                
+                if (particle.life <= 0) {
+                    particle.element.remove();
+                    particles.splice(i, 1);
+                }
+            }
+            
+            // Increase game speed gradually
+            gameSpeed += 0.0005;
+        }
+        
+        // ===== GAME STATE MANAGEMENT =====
+        function startGame() {
+            gameState = 'playing';
+            score = 0;
+            lives = 3;
+            gameSpeed = 1;
+            
+            // Clear existing entities
+            clearEntities();
+            
+            // Reset UI
+            updateScore();
+            updateLives();
+            
+            // Hide all screens
+            hideAllScreens();
+            
+            // Position player in center
+            player.x = canvas.width / 2;
+            player.y = canvas.height * 0.8;
+            player.targetX = player.x;
+            player.targetY = player.y;
+            updatePlayerPosition();
+            
+            // Resume audio context if needed
+            if (audioContext && audioContext.state === 'suspended') {
+                audioContext.resume();
+            }
+        }
+        
+        function pauseGame() {
+            if (gameState === 'playing') {
+                gameState = 'paused';
+                showScreen('pauseScreen');
+            }
+        }
+        
+        function resumeGame() {
+            if (gameState === 'paused') {
+                gameState = 'playing';
+                hideScreen('pauseScreen');
+            }
+        }
+        
+        function gameOver() {
+            gameState = 'gameOver';
+            
+            // Update final score
+            document.getElementById('finalScore').textContent = score;
+            
+            // Show encouraging message based on score
+            const message = document.getElementById('scoreMessage');
+            if (score >= 500) {
+                message.textContent = 'Outstanding! You\'re a star catching master! 🌟';
+            } else if (score >= 200) {
+                message.textContent = 'Great job! You\'ve got some serious skills! 🎯';
+            } else if (score >= 100) {
+                message.textContent = 'Not bad! Keep practicing and you\'ll improve! 💪';
+            } else {
+                message.textContent = 'Good effort! Try again and aim for the stars! ⭐';
+            }
+            
+            playSound(150, 0.5);
+            showScreen('gameOverScreen');
+        }
+        
+        function showStart() {
+            gameState = 'start';
+            clearEntities();
+            hideAllScreens();
+            showScreen('startScreen');
+        }
+        
+        function showTutorial() {
+            hideScreen('startScreen');
+            showScreen('tutorialScreen');
+        }
+        
+        // ===== UI MANAGEMENT =====
+        function updateScore() {
+            document.getElementById('score').textContent = score;
+        }
+        
+        function updateLives() {
+            const heartsDisplay = document.getElementById('lives');
+            heartsDisplay.textContent = '❤️'.repeat(Math.max(0, lives));
+        }
+        
+        function showScreen(screenId) {
+            document.getElementById(screenId).classList.remove('hidden');
+        }
+        
+        function hideScreen(screenId) {
+            document.getElementById(screenId).classList.add('hidden');
+        }
+        
+        function hideAllScreens() {
+            const screens = document.querySelectorAll('.screen');
+            screens.forEach(screen => screen.classList.add('hidden'));
+        }
+        
+        function clearEntities() {
+            // Clear stars
+            stars.forEach(star => star.element.remove());
+            stars = [];
+            
+            // Clear obstacles
+            obstacles.forEach(obstacle => obstacle.element.remove());
+            obstacles = [];
+            
+            // Clear particles
+            particles.forEach(particle => particle.element.remove());
+            particles = [];
+        }
+        
+        // ===== GAME LOOP =====
+        function gameLoop() {
+            updateGame();
+            requestAnimationFrame(gameLoop);
+        }
+        
+        // ===== INITIALIZE AND START =====
+        window.addEventListener('load', () => {
+            initGame();
+            gameLoop();
+        });
+    </script>
+</body>
+</html>
