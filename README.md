@@ -6,7 +6,7 @@ A fast-paced browser game deployed using a modern CI/CD pipeline with **GitHub A
 
 ## 📸 Project Preview
 
-![Catch the Stars Game Screenshot](assets/catch-the-stars-preview.png)
+![Catch the Stars Game Screenshot](https://github.com/RohitKamble14/catch-stars/blob/master/screenshots/Live-game.gif)
 
 ---
 
